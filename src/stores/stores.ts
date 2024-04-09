@@ -13,26 +13,14 @@ export interface DefaultAssistantRole {
   type: string;
 }
 
-export interface GptModel {
-  code: string;
-  name: string;
-  inputCost: number;
-  outputCost: number;
-  tokenLimit: number;
-}
-
 export const settingsVisible = writable(false)
 export const menuVisible = writable(false)
 
 let storedApiKey = localStorage.getItem("api_key")
 let parsedApiKey = storedApiKey !== null ? JSON.parse(storedApiKey) : null;
+
 export const apiKey:Writable<string|null> = writable(parsedApiKey)
 apiKey.subscribe((value) => localStorage.setItem("api_key", JSON.stringify(value)));
-
-let storedStreamMessages = localStorage.getItem("streamMessages")
-let parsedStreamMessages: boolean = storedStreamMessages !== null ? JSON.parse(storedStreamMessages) : true;
-export const streamMessages:Writable<boolean> = writable(parsedStreamMessages)
-streamMessages.subscribe((value) => localStorage.setItem("streamMessages", JSON.stringify(value)));
 
 let storedCombinedTokens = localStorage.getItem('combined_tokens');
 let parsedCombinedTokens: number = storedCombinedTokens !== null ? JSON.parse(storedCombinedTokens) : 0;
@@ -46,17 +34,6 @@ export const defaultAssistantRole = writable(parsedDefaultAssistantRole || {
     type: "system",
   });
 defaultAssistantRole.subscribe((value) => localStorage.setItem("default_assistant_role", JSON.stringify(value)));
-
-let storedModel = localStorage.getItem('model');
-let parsedModel: GptModel = storedModel !== null ? JSON.parse(storedModel) : 0;
-export const gptModel = writable(parsedModel || {
-    code: "gpt-3.5-turbo",
-    name: "GPT 3.5 Turbo",
-    inputCost: 0.002,
-    outputCost: 0.002,
-    tokenLimit: 4096,
-  });
-gptModel.subscribe((value) => localStorage.setItem("model", JSON.stringify(value)));
 
 export const chosenConversationId = writable(0);
 
@@ -73,3 +50,23 @@ export const conversations: Writable<Conversation[]> = writable(parsedConversati
 conversations.subscribe((value) => {
   localStorage.setItem('conversations', JSON.stringify(value));
 });
+
+
+export const selectedModel = writable(localStorage.getItem('selectedModel') || 'gpt-3.5-turbo');
+export const selectedVoice = writable(localStorage.getItem('selectedVoice') || 'alloy');
+export const selectedMode = writable(localStorage.getItem('selectedMode') || 'GPT');
+selectedModel.subscribe(value => {
+    localStorage.setItem("selectedModel", value);
+  });
+  selectedVoice.subscribe(value => {
+    localStorage.setItem("selectedVoice", value);
+  });
+  export const audioUrls = writable([]);
+
+  export const base64Images = writable([]);
+  export const clearFileInputSignal = writable(false);
+
+  export const isStreaming = writable(false);  
+  export const userRequestedStreamClosure = writable(false);  
+
+  export const streamContext = writable({ streamText: '', convId: null });  

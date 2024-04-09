@@ -1,108 +1,179 @@
 <script lang="ts">
-  import { writable } from "svelte/store";
+    import { selectedModel, selectedVoice, selectedMode } from '../stores/stores';
+    import { createEventDispatcher } from 'svelte';
+    import CloseIcon from "../assets/close.svg";
+    import { writable, get, derived } from "svelte/store";
+  import { onMount } from 'svelte';
+
   import {
     apiKey,
     settingsVisible,
     combinedTokens,
     defaultAssistantRole,
-    gptModel,
-    streamMessages,
     type DefaultAssistantRole,
   } from "../stores/stores";
-  let apiTextField = $apiKey === null ? "" : $apiKey;
+
+  const dispatch = createEventDispatcher();
+
+  let apiCheckMessage = writable('');
+  let models = writable([]); // Store for available models
+  let filteredModels = writable([]); // Initialize filteredModels as a writable store
+  $: $selectedMode, updateFilteredModels();
+    $: $models, updateFilteredModels();
+
+  let localApiTextField: string = get(apiKey) || ''; 
+  $: localApiTextField = $apiKey || '';
+
+  let apiTextField = '';
+  apiKey.subscribe(value => {
+    apiTextField = value || '';
+    localApiTextField = apiTextField;
+  });
+
   let assistantRoleField = $defaultAssistantRole.role;
   let assistantRoleTypeField = $defaultAssistantRole.type;
-  let modelNameField = $gptModel.code;
-  let messageTypeField = $streamMessages.toString();
-  let oldNameField = modelNameField;
-  import CloseIcon from "../assets/close.svg";
+
+  apiKey.subscribe((value) => {
+  localStorage.setItem("api_key", JSON.stringify(value));
+});
+
+
+onMount(async() => {
+   await initializeSettings();
+
+  });
+
+ function updateFilteredModels() {
+        let mode = get(selectedMode);
+        let availableModels = get(models);
+        let newFilteredModels = [];
+
+        if (mode === "GPT") {
+            newFilteredModels = availableModels.filter(model => model.id.includes('gpt') && !model.id.includes('vision'));
+        } else if (mode === "GPT + Vision") {
+            newFilteredModels = availableModels.filter(model => model.id.includes('vision'));
+        } else if (mode === "TTS") {
+            newFilteredModels = availableModels.filter(model => model.id.includes('tts'));
+        }
+
+        filteredModels.set(newFilteredModels);
+
+        // Automatically select the first model in the filtered list if the current selection is not in the new list
+        if (newFilteredModels.length > 0 && (!get(selectedModel) || !newFilteredModels.some(model => model.id === get(selectedModel)))) {
+            selectedModel.set(newFilteredModels[0].id);
+        }
+    }
+async function initializeSettings() {
+    const savedMode = localStorage.getItem("selectedMode");
+    selectedMode.set(savedMode || "GPT"); 
+
+    if (apiTextField) {
+        await fetchModels(apiTextField);
+    } else {
+        const savedModels = localStorage.getItem("models");
+        if (savedModels) {
+            models.set(JSON.parse(savedModels));
+        }
+    }
+    updateFilteredModels(); 
+}
+
+async function checkAPIConnection() {
+  if (!localApiTextField) {
+    apiCheckMessage.set("API key is missing.");
+    return;
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localApiTextField}`,
+        'Content-Type': 'application/json'
+      },
+    });
+
+    if (response.ok) {
+      apiCheckMessage.set("API connection succeeded.");
+      // Optionally, reload settings or models here
+      handleSave();
+      await fetchModels(apiTextField);
+      updateFilteredModels(); 
+    } else {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("API connection failed:", error);
+    apiCheckMessage.set("API connection failed.");
+  }
+}
+
+
+
+async function fetchModels(apiKey: string) {
+  if (!apiKey) {
+    console.error("API key is missing.");
+    return;
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/models', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const sortedModels = data.data.sort((a, b) => a.id.localeCompare(b.id));
+    models.set(sortedModels);
+    localStorage.setItem("models", JSON.stringify(sortedModels));
+
+    // After models are fetched and set, restore the model selection
+  } catch (error) {
+    console.error("Failed to fetch models:", error);
+  }
+}
 
   function clearTokens() {
     combinedTokens.set(0);
   }
+
   function handleSave() {
-    defaultAssistantRole.set({
-      role: assistantRoleField,
-      type: assistantRoleTypeField,
-    });
-    switch (modelNameField) {
-      case "gpt-3.5-turbo":
-        gptModel.set({
-          code: "gpt-3.5-turbo",
-          name: "GPT 3.5 Turbo 4k (Main)",
-          inputCost: 0.002,
-          outputCost: 0.002,
-          tokenLimit: 4097,
-        });
-        break;
-      case "gpt-3.5-turbo-1106":
-        gptModel.set({
-          code: "gpt-3.5-turbo-1106",
-          name: "GPT 3.5 Turbo 16k (1106)",
-          inputCost: 0.001,
-          outputCost: 0.002,
-          tokenLimit: 16385,
-        });
-        break;
-      // gpt-3.5-turbo-0613  can be erased after June 27th
-      // as that is when the normal GPT 3.5 turbo will use the new model
-      case "gpt-3.5-turbo-0613":
-        gptModel.set({
-          code: "gpt-3.5-turbo-0613",
-          name: "GPT 3.5 Turbo 4k (0613)",
-          inputCost: 0.0015,
-          outputCost: 0.0015,
-          tokenLimit: 4096,
-        });
-        break;
-      case "gpt-3.5-turbo-16k":
-        gptModel.set({
-          code: "gpt-3.5-turbo-16k",
-          name: "GPT 3.5 Turbo 16k (0613)",
-          inputCost: 0.003,
-          outputCost: 0.004,
-          tokenLimit: 16384,
-        });
-        break;
-      case "gpt-4":
-        gptModel.set({
-          code: "gpt-4",
-          name: "GPT 4 8k",
-          inputCost: 0.03,
-          outputCost: 0.06,
-          tokenLimit: 8192,
-        });
-        break;
-      case "gpt-4-32k":
-        gptModel.set({
-          code: "gpt-4-32k",
-          name: "GPT 4 32k",
-          inputCost: 0.06,
-          outputCost: 0.12,
-          tokenLimit: 32768,
-        });
-        break;
-      case "gpt-4-1106-preview":
-        gptModel.set({
-          code: "gpt-4-1106-preview",
-          name: "GPT 4 Turbo 128k (1106)",
-          inputCost: 0.01,
-          outputCost: 0.03,
-          tokenLimit: 128000,
-        });
-    }
-    streamMessages.set(messageTypeField === "true");
-    apiKey.set(apiTextField);
-    handleClose();
+  defaultAssistantRole.set({ role: assistantRoleField, type: assistantRoleTypeField });
+  apiKey.set(localApiTextField);
+
+  localStorage.setItem('selectedModel', get(selectedModel));
+  localStorage.setItem('selectedVoice', get(selectedVoice));
+  localStorage.setItem('selectedMode', get(selectedMode));
+
+  dispatch('settings-changed');
+  console.log("Settings saved.");
   }
+
+
+
+
+
   function handleClose() {
     settingsVisible.set(false);
   }
+
+  function handleSaveAndClose() {
+handleSave();
+handleClose();
+  }
+
 </script>
 
 <!-- Settings.svelte -->
-<div class="fixed z-10 inset-0 overflow-y-auto animate-fade-in">
-  <div class="flex items-center justify-center min-h-screen">
+<div class="fixed z-10 inset-0  overflow-y-auto animate-fade-in">
+  <div class="flex items-center  justify-center min-h-screen">
     <div class="bg-primary text-white rounded-lg shadow-xl p-8 relative">
       <button
         class="absolute top-0 right-0 mt-2 mr-2 text-gray-500 hover:text-gray-600"
@@ -110,25 +181,59 @@
       >
         <img class="icon-white w-8" alt="Close" src={CloseIcon} />
       </button>
-      <h2 class="text-xl mb-2 font-bold">Settings</h2>
+      <h2 class="text-xl font-bold mb-4">Settings</h2>
+    <div class="mb-4">
+  <label for="api-key" class="block font-medium mb-2">API Key</label>
+  <div class="flex items-center">
+    <input
+      type="password"
+      id="api-key"
+      name="api-key"
+      class="border text-black border-gray-300 p-2 rounded w-full"
+      bind:value={localApiTextField}
+    />
+    <button
+      class="ml-2 bg-info hover:bg-infoHover text-white p-2 rounded"
+      on:click={checkAPIConnection}
+    >Check API</button>
+  </div>
+  <p class="mt-2">{ $apiCheckMessage }</p>
+</div>
+
+
+      <div class="mb-4">
+        <label for="mode-selection" class="block font-medium mb-2">Mode Selection</label>
+        <select bind:value={$selectedMode} class="border text-black border-gray-300 p-2 rounded w-full" id="mode-selection">
+          <option value="GPT">GPT</option>
+          <option value="GPT + Vision">GPT + Vision</option>
+          <option value="TTS">TTS</option>
+        </select>
+      </div>
+      
+
+      <div class="mb-4">
+        <label for="model-selection" class="block font-medium mb-2">Model Selection</label>
+       <select bind:value={$selectedModel} class="border text-black border-gray-300 p-2 rounded w-full" id="model-selection">
+    {#each $filteredModels as model}
+        <option value={model.id}>{model.id}</option>
+    {/each}
+</select>
+      </div>
+      {#if $selectedModel.startsWith('tts')}
+<div class="mb-4">
+  <label for="voice-selection" class="block font-medium mb-2">Voice Selection</label>
+  <select bind:value={$selectedVoice} class="border text-black border-gray-300 p-2 rounded w-full" id="voice-selection">
+    <option value="alloy">Alloy</option>
+    <option value="echo">Echo</option>
+    <option value="fable">Fable</option>
+    <option value="onyx">Onyx</option>
+    <option value="nova">Nova</option>
+    <option value="shimmer">Shimmer</option>
+  </select>
+</div>
+{/if}
       <div class="mb-4">
         <label for="api-key" class="block font-medium mb-2"
-          >API Key <a
-            class="text-blue-300"
-            href="https://github.com/patrikzudel/PatrikZeros-ChatGPT-API-UI/blob/main/README.md"
-            >(Tutorial)</a
-          ></label
-        >
-        <input
-          type="password"
-          id="api-key"
-          name="api-key"
-          class="border text-black border-gray-300 p-2 rounded w-full"
-          bind:value={apiTextField}
-        />
-      </div>
-      <div class="mb-0">
-        <label for="api-key" class="block font-medium mb-1"
           >Default Assistant role</label
         >
         <input
@@ -137,129 +242,36 @@
         />
         <select
           bind:value={assistantRoleTypeField}
-          class="max-w-[86px] text-black bg-white my-2 p-2 rounded focus:outline-none focus:bg-white"
+          class="max-w-[86px] text-black bg-white my-2 p-2 rounded focus:outline-none focus:bg-white "
         >
           <option value="system">System</option>
           <option value="user">User</option>
         </select>
       </div>
-      <div>
-        <label for="model" class="block font-medium mb-1">Chosen model</label>
-        <select
-          bind:value={modelNameField}
-          class="max-w-[256px] text-black bg-white mb-2 p-2 rounded focus:outline-none focus:bg-white"
-        >
-          <option value="gpt-3.5-turbo"
-            >GPT 3.5 Turbo | 4k | Main | $0.0015</option
-          >
-          <option value="gpt-3.5-turbo-1106"
-            >GPT 3.5 Turbo | 16k | New! | v1106 | $0.001 / $0.002</option
-          >
-          <option value="gpt-3.5-turbo-0613"
-            >GPT 3.5 Turbo | 4k | v0613 | $0.0015</option
-          >
-          <option value="gpt-3.5-turbo-16k"
-            >GPT 3.5 Turbo | 16k | v0613 | $0.003 / $0.004</option
-          >
-          <option value="gpt-4-1106-preview"
-            >GPT 4 Turbo | 128k | $0.01 / $0.03</option
-          >
-          <option value="gpt-4">GPT 4 | 8k | $0.03 / $0.06</option>
-          <option value="gpt-4-32k">GPT 4 | 32k | $0.06 / $0.12</option>
-        </select>
-      </div>
-      {#if modelNameField == "gpt-4" || modelNameField == "gpt-4-32k" || modelNameField == "gpt-4-1106-preview"}
-        <h1 class=" text-red-500 font-bold mb-2">
-          WARNING GPT 4 is VERY expensive!
-        </h1>
-      {/if}
-      <div>
-        <label for="model" class="block font-medium mb-1">Request type</label>
-        <select
-          bind:value={messageTypeField}
-          class="max-w-[256px] text-black bg-white mb-2 p-2 rounded focus:outline-none focus:bg-white"
-        >
-          <option value="true">Stream</option>
-          <option value="false">Request (Experimental)</option>
-        </select>
-      </div>
-      {#if modelNameField !== oldNameField}
-        <h1 class=" text-red-500 font-bold text-sm">
-          Pricing updates only after saving!
-        </h1>
-      {/if}
-      <div class="mb-4 flex flex-col justify-between items-start">
-        <div class="flex justify-between items-center">
-          <p class="block font-bold">
-            Tokens spent: {$combinedTokens.toFixed(0)} | {(
-              ($combinedTokens / 1000) *
-              (($gptModel.inputCost + $gptModel.outputCost) / 2)
-            ).toFixed(4)} $
-          </p>
-          <button
-            on:click={clearTokens}
-            class="bg-warning hover:bg-warningHover transition-colors duration-200 text-white ml-10 w-5 h-5 flex align-middle justify-center rounded"
-            style="font-size: 1rem"
-          >
-            <img class="icon-white w-3" alt="Close" src={CloseIcon} />
-          </button>
-        </div>
-        <p class="block font-bold mt-2 text-xs">
-          {$gptModel.name} pricing.
+      <div class="mb-4 flex justify-between items-center ">
+        <p class="block font-bold">
+          Tokens spent: {$combinedTokens.toFixed(0)} | {(
+            ($combinedTokens / 1000) *
+            0.002
+          ).toFixed(4)} $
         </p>
-        <p class="block font-bold text-xs">
-          Averaged i/o cost per 1k tokens: {($gptModel.inputCost +
-            $gptModel.outputCost) /
-            2}
-        </p>
-      </div>
-      <div class="flex justify-between items-end">
         <button
-          class="bg-good hover:bg-good2 transition-colors duration-200 text-white py-2 px-4 rounded"
-          on:click={handleSave}>Save</button
+          on:click={clearTokens}
+          class="bg-warning hover:bg-warningHover transition-colors duration-200 text-white ml-10 w-5 h-5 flex align-middle justify-center rounded"
+          style="font-size: 1rem"
         >
-        <a
-          href="https://github.com/patrikzudel/PatrikZeros-ChatGPT-API-UI"
-          class="text-sm text-gray-400">GitHub</a
-        >
+          <img class="icon-white w-3" alt="Close" src={CloseIcon} />
+        </button>
       </div>
+      <button
+        class="bg-good hover:bg-good2 transition-colors duration-200 text-white py-2 px-4 rounded"
+        on:click={handleSaveAndClose}>Save</button
+      >
     </div>
   </div>
 </div>
 
 <style>
-  /* Set the background to semi-transparent black */
-  .fixed {
-    background-color: rgba(0, 0, 0, 0.4);
-  }
-
-  /* Center the settings window horizontally and vertically */
-  .min-h-screen {
-    min-height: calc(100vh - 4rem);
-  }
-
-  /* Adjust the width of the settings window */
-  .bg-white {
-    width: 24rem;
-  }
-
-  /* Add some padding to the text input */
-  .border {
-    padding: 0.5rem;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  .animate-fade-in {
-    animation-name: fadeIn;
-    animation-duration: 0.2s;
-    animation-fill-mode: forwards;
-  }
+  @import '../styles/settings.css';
+ 
 </style>

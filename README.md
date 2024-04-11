@@ -1,4 +1,4 @@
-# ChatGPT API UI - Enhanced Version
+# SmoothGPT - a ChatGPT API Enhanced UI
 
 This is my overhauled and improved ChatGPT API UI, forked from patrikzudel ([PatrikZeros-ChatGPT-API-UI](https://github.com/patrikzudel/PatrikZeros-ChatGPT-API-UI)). Firstly, a **HUGE thank you** to Patrik for his fantastic work in the original version.
 

@@ -289,7 +289,7 @@ SmoothGPT
             {:else}
 
 
-            <div class="message-display px-20 text-[1rem]">
+            <div class="message-display pl-20 pr-5 md:px-20 text-[1rem]">
               {#if isImageUrl(message.content)}
           <img src={message.content} alt="Generated" class="max-w-full h-auto my-3"/>
           <div class="text-sm text-gray-500">

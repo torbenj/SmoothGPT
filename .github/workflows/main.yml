@@ -16,3 +16,4 @@ jobs:
         password: ${{ secrets.FTP_PASS }}
         local-dir: dist/
         server-dir: /
+        secure: 'true'  # Ensure to connect using TLS

@@ -5,4 +5,6 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 export default defineConfig({
   plugins: [svelte()],
     base: '/', 
+    logLevel: 'info',  // Options are 'info', 'warn', 'error', and 'silent'
+
 })

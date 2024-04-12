@@ -1,6 +1,7 @@
 <script>
-  export let lang;
+
   export let text;
+
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(text);
@@ -8,49 +9,49 @@
       console.error("Error copying text: ", error);
     }
   };
+  
 </script>
 
-<pre class={lang} style="position:relative">
-<code>{text}</code>
-<button on:click={copyToClipboard}>Copy to Clipboard</button>
-</pre>
+<div style="position:relative">
+  <div class="copycode">
+    <button on:click={copyToClipboard}>Copy code</button>
+  </div>
+  <!-- Wrap highlightedCode within <pre> and <code> -->
+  <pre><code>{text}</code></pre>
+</div>
 
-<!-- <p class="text-red-400">{lang}</p> -->
 <style>
   pre {
-    background-color: rgba(0, 0, 0, 0.3);
-    border-radius: 10px;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+    background-color: #0d0d0d;
+    border-radius: 0px 0px 10px 10px;
     padding: 20px;
-    margin: 20px;
-
+    margin: 0 20px 0 20px; 
     opacity: 0;
     animation: fade-in 0.5s ease-in-out forwards;
-  }
-
-  pre:hover button {
-    opacity: 1;
-  }
-
-  code {
+    margin-bottom: 1rem;
     font-weight: bold;
     overflow-wrap: break-word;
     white-space: pre-wrap;
   }
 
+  .copycode {
+    display: flex;
+    justify-content: flex-end;
+    background-color: #2f2f2f;
+    margin: 0 20px 0 20px;
+    border-radius: 10px 10px 0px 0px;
+    padding: 0.5rem 1rem 0.5rem 1rem;
+
+  }
   button {
-    position: absolute;
-    opacity: 0;
-    top: 0;
-    right: 0;
-    margin: 10px;
+    font-size: small;
+    display: block; 
     transition: all 0.1s ease-in-out;
+    color: rgb(187, 187, 187);
   }
 
   button:hover {
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5),
-      0 0 20px rgba(255, 255, 255, 0.5), 0 0 30px rgba(255, 255, 255, 0.3),
-      0 0 40px rgba(255, 255, 255, 0.5);
+    color: white;
   }
 
   @keyframes fade-in {
@@ -61,4 +62,6 @@
       opacity: 1;
     }
   }
+
+
 </style>

@@ -5,7 +5,7 @@ import type  { ChatCompletionRequestMessageRoleEnum } from "openai";
 import { apiKey} from "../stores/stores";
 import { selectedModel, selectedVoice, audioUrls, defaultAssistantRole, isStreaming, streamContext } from '../stores/stores';
 import { conversations, chosenConversationId, combinedTokens, userRequestedStreamClosure } from "../stores/stores";
-import { setHistory, countTokens, estimateTokens, displayAudioMessage } from '../managers/conversationManager';
+import { setHistory, countTokens, estimateTokens, displayAudioMessage, cleanseMessage } from '../managers/conversationManager';
 import { SSE } from 'sse.js'; // Assuming SSE library is used
 import { countTicks } from '../utils/generalUtils';
 import { saveAudioBlob, getAudioBlob } from '../idb';
@@ -113,7 +113,6 @@ export function reloadConfig(): void {
 }
 
 export async function sendRequest(msg: ChatCompletionRequestMessage[], model: string = get(selectedModel)): Promise<any> {
-  console.log("Sending request with model: " + model);
 
   try {
     // Prepend the system message to msg
@@ -124,7 +123,6 @@ export async function sendRequest(msg: ChatCompletionRequestMessage[], model: st
       },
       ...msg,
     ];
-    console.log("conv len a", get(conversations).length);
 
     // Attempt to send the request
     const response = await openai.createChatCompletion({
@@ -149,18 +147,6 @@ export async function sendRequest(msg: ChatCompletionRequestMessage[], model: st
     // Re-throw the error or handle it as needed
     throw error;
   }
-}
-
-async function updateHistory(streamText, convId, ticks) {
-  let currentHistory = get(conversations)[convId].history;
-  await setHistory([
-    ...currentHistory,
-    {
-      role: "assistant",
-      content: streamText + (ticks ? "\n```" : ""),
-    },
-  ], convId);
-  console.log("History updated.");
 }
 
 function parseJSONChunks(rawData) {
@@ -235,17 +221,41 @@ export async function sendVisionMessage(msg: ChatCompletionRequestMessage[], ima
   let ticks = false;
   let currentHistory = get(conversations)[convId].history;
 
-  // Prepare the message content with text and images
-  let messageContent = [
+    // Convert history messages into the expected format
+    let historyMessages = currentHistory.map(historyItem => ({
+      role: historyItem.role,
+      content: typeof historyItem.content === 'string' ? [{type: "text", text: historyItem.content}] : historyItem.content,
+  }));
+
+  let userTextMessage = [...msg].reverse().find(m => m.role === "user")?.content || "";
+
+  let imageMessages = imagesBase64.map(imageBase64 => ({
+    type: "image_url",
+    image_url: {
+        url: imageBase64, // Ensure your base64 string includes the proper data URI scheme
+    }
+}));
+
+// Construct the combined message content array for the current message
+let combinedMessageContent = userTextMessage ? [
     {
-      type: "text",
-      text: [...msg].reverse().find(m => m.role === "user")?.content || "",
+        type: "text",
+        text: userTextMessage,
     },
-    ...imagesBase64.map(imageBase64 => ({
-      type: "image_url",
-      image_url: { url: `${imageBase64}` },
-    })),
-  ];
+    ...imageMessages // Spread operator to include all image messages
+] : [...imageMessages]; // Only include image messages if there's no text message
+
+// Create a single 'user' message object that contains both the text and image contents for the current message
+let currentMessage = {
+    role: "user",
+    content: combinedMessageContent,
+};
+
+// Combine the history and the current message into the final payload
+const cleansedMessages = historyMessages.map(cleanseMessage);
+
+let finalMessages = [...cleansedMessages, currentMessage];
+
   let done = false;
   let streamText = "";
 
@@ -260,15 +270,17 @@ export async function sendVisionMessage(msg: ChatCompletionRequestMessage[], ima
     method: "POST",
     payload: JSON.stringify({
       model: get(selectedModel),
-      messages: [
-        {
-          role: "user",
-          content: messageContent,
-        },
-      ],
+      messages: finalMessages, // Updated to include full conversation history
       stream: true,
     }),
   });
+
+  console.log("payload", JSON.stringify({
+    model: get(selectedModel),
+    messages: finalMessages, // Updated to include full conversation history
+    stream: true,
+  })
+);
 
   source.addEventListener("message", async (e) => {
     let payload;
@@ -370,6 +382,9 @@ export async function sendVisionMessage(msg: ChatCompletionRequestMessage[], ima
     };
     
     msg = [roleMsg, ...msg];
+
+    const cleansedMessages = msg.map(cleanseMessage);
+
     let done = false;
     let streamText = "";
   
@@ -384,10 +399,17 @@ export async function sendVisionMessage(msg: ChatCompletionRequestMessage[], ima
       method: "POST",
       payload: JSON.stringify({
         model: get(selectedModel),
-        messages: msg,
+        messages: cleansedMessages,
         stream: true,
       }),
     });
+
+    console.log("payload", JSON.stringify({
+      model: get(selectedModel),
+      messages: cleansedMessages,
+      stream: true,
+    })
+  );
   
   
     source.addEventListener("message", async (e) => { // Note: Adding async here makes the callback function async

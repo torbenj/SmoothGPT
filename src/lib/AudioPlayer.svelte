@@ -20,9 +20,9 @@
 </script>
 
 <!-- Adjusted layout to include reactive audio source -->
-<div>
+<div><div class="mb-2">Your audio file is ready:</div>
     <button on:click={togglePlay}><span class="playbutton">▶ Play</span></button>
-    | <span class="downloadbutton"><a href="{audioUrl}" download="response.mp3">⇓ Download</a></span> (unavailable after refresh!)
+    | <span class="downloadbutton"><a href="{audioUrl}" download="response.mp3">⇓ Download</a></span><div class="notice">(unavailable after refresh!)</div>
     <audio bind:this={audioRef} style="display: none;"></audio>
 </div>
 
@@ -37,4 +37,8 @@
     text-decoration: underline;
 }
 
+.notice {
+    font-size: 0.8em;
+    color: rgb(196, 196, 87);
+}
 </style>

@@ -1,0 +1,58 @@
+<script lang="ts">
+    import CloseIcon from "../assets/close.svg";
+    import { helpVisible } from "../stores/stores";
+  
+    // Function to close the help modal
+    function handleClose() {
+      helpVisible.set(false);
+    }
+  </script>
+  
+  <div class="fixed z-50 inset-0 overflow-y-auto animate-fade-in">
+    <div class="flex items-center justify-center min-h-screen">
+      <div class="bg-primary text-white rounded-lg shadow-xl p-8 relative max-w-lg mx-4">
+        <button
+          class="absolute top-0 right-0 mt-2 mr-2 text-gray-500 hover:text-gray-600"
+          on:click={handleClose}
+        >
+          <img class="icon-white w-8" alt="Close" src={CloseIcon} />
+        </button>
+        <h2 class="text-xl font-bold mb-4">Help & FAQ</h2>
+        <div class="text-left">
+          <h1 class="text-3xl font-bold mb-4">What is SmoothGPT?</h1>
+          <p class="mb-4">OpenAI offers ChatGPT Plus for a monthly subscription, which allows you to use their UI to converse with ChatGPT. However, this comes with usage limits, and the $20/mo fee is expensive. Alternatively, you can use the OpenAI API, which is much more affordable with a pay-as-you-go rate. But, the API is not end-user friendly! It's designed for developers who can build apps around it.</p>
+          <p class="mb-4"><strong>That's where SmoothGPT comes in!</strong> SmoothGPT provides a UI that is extremely similar to the ChatGPT official site.</p>
+  
+          <h2 class="text-2xl font-bold mb-3">Key Features:</h2>
+          <ul class="list-disc list-inside mb-4">
+              <li>Your API calls are safely made directly in the browser, not server-side. All data is stored in your browser cache or session.</li>
+              <li>Switch between GPT, Vision, and TTS models with shared conversation context.</li>
+              <li>Copy or delete messages easily.</li>
+              <li>Edit messages to change the conversation.</li>
+              <li>Safely stop incoming messages.</li>
+              <li>Edit conversation titles.</li>
+              <li>It's absolutely free.</li>
+          </ul>
+  
+          <div class="mb-1 mt-4">
+              <a href="https://github.com/agambon/SmoothGPT" target="_blank" rel="noreferrer"  class="text-blue-500 hover:text-blue-700">See the source code</a>
+          </div>
+          <div class="mb-1">
+              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer"  class="text-blue-500 hover:text-blue-700">Get an API key</a>
+          </div>
+          <div class="mb-4">
+              <a href="https://github.com/billmei/every-chatgpt-gui" target="_blank" rel="noreferrer"  class="text-blue-500 hover:text-blue-700">Check out other API frontends</a>
+          </div>
+  
+          <p class="mb-4"><strong>Note on data storage:</strong> If you browse away while a response is streaming in, you will miss that data. If you refresh your page, TTS MP3 files are lost, but conversations are maintained. If you wipe your browser cache, ALL content is lost. You can download your session locally and restore it anytime.</p>
+    
+        </div>
+        <button class="bg-good hover:bg-good2 transition-colors duration-200 text-white py-2 px-4 mt-4 rounded" on:click={handleClose}>Got it!</button>
+      </div>
+    </div>
+  </div>
+  
+  <style>
+    @import '../styles/settings.css'; 
+  </style>
+  

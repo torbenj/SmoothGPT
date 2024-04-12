@@ -14,6 +14,7 @@ export interface DefaultAssistantRole {
 }
 
 export const settingsVisible = writable(false)
+export const helpVisible = writable(false)
 export const menuVisible = writable(false)
 
 let storedApiKey = localStorage.getItem("api_key")
@@ -62,6 +63,7 @@ selectedModel.subscribe(value => {
     localStorage.setItem("selectedVoice", value);
   });
   export const audioUrls = writable([]);
+  export const showTokens = writable(false); 
 
   export const base64Images = writable([]);
   export const clearFileInputSignal = writable(false);

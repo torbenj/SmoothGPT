@@ -5,6 +5,7 @@
   import Topbar from "./lib/Topbar.svelte";
   import Sidebar from "./lib/Sidebar.svelte";
   import Settings from "./lib/Settings.svelte";
+  import Help from "./lib/Help.svelte";
   import SvelteMarkdown from "svelte-markdown";
   import CodeRenderer from "./renderers/Code.svelte";
   import EmRenderer from "./renderers/Em.svelte";
@@ -15,12 +16,15 @@
   import HtmlRenderer from "./renderers/Html.svelte";
   import DeleteIcon from "./assets/delete.svg";
   import CopyIcon from "./assets/CopyIcon.svg"; 
+  import UserIcon from "./assets/UserIcon.svg"; 
+  import RobotIcon from "./assets/RobotIcon.svg"; 
   import MoreIcon from "./assets/more.svg";
+  import EditIcon from "./assets/edit.svg";
   import SendIcon from "./assets/send.svg";
   import WaitIcon from "./assets/wait.svg"; 
   import  UploadIcon from "./assets/upload-icon.svg";
   import { afterUpdate } from "svelte";
-  import { conversations, chosenConversationId, settingsVisible, clearFileInputSignal } from "./stores/stores";
+  import { conversations, chosenConversationId, settingsVisible, helpVisible, clearFileInputSignal } from "./stores/stores";
   import { isAudioMessage, formatMessageForMarkdown } from "./utils/generalUtils";
   import { routeMessage, newChat, deleteMessageFromConversation } from "./managers/conversationManager";
   import { copyTextToClipboard } from './utils/generalUtils';
@@ -32,9 +36,15 @@
 
   let fileInputElement; // This will hold the reference to your file input element
   let input: string = "";
+  let textAreaElement; // Reference to the textarea element
+  let editTextArea; // Reference to the editing textarea element
+
   let chatContainer: HTMLElement;
   let moreButtonsToggle: boolean = false;
   let conversationTitle = "";
+
+  let editingMessageId: number | null = null;
+  let editingMessageContent: string = "";
 
   $: if ($clearFileInputSignal && fileInputElement) {
     fileInputElement.value = '';
@@ -99,13 +109,24 @@
     }    
   }    
 }  
-  
+const textMaxHeight = 300; // Maximum height in pixels
 
+function autoExpand(event) {
+    event.target.style.height = 'inherit'; // Reset the height
+    const computed = window.getComputedStyle(event.target);
+    // Calculate the height
+    const height = parseInt(computed.getPropertyValue('border-top-width'), 10)
+                 + event.target.scrollHeight
+                 + parseInt(computed.getPropertyValue('border-bottom-width'), 10);
+
+                 event.target.style.height = `${Math.min(height, textMaxHeight)}px`; // Apply the smaller of the calculated height or maxHeight
+  }
 
   function processMessage() {
     let convId = $chosenConversationId;
     routeMessage(input, convId);
     input = ""; 
+    textAreaElement.style.height = '96px'; // Reset the height after sending
   }
   function scrollChat() {
     if (chatContainer) chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -128,59 +149,155 @@ $: conversationTitle = $conversations[$chosenConversationId] ? $conversations[$c
 let uploadedFileCount: number = 0; // New variable to track the number of files uploaded
 $: uploadedFileCount = $base64Images.length;
 
+function startEditMessage(i: number) {
+    editingMessageId = i;
+    editingMessageContent = $conversations[$chosenConversationId].history[i].content;
+  }
+
+  function cancelEdit() {
+    editingMessageId = null;
+    editingMessageContent = "";
+    editTextArea.style.height = '96px'; // Reset the height when editing is canceled
+  }
+
+  function submitEdit(i: number) {
+    const editedContent = editingMessageContent; // Temporarily store the edited content
+    // Calculate how many messages need to be deleted
+    const deleteCount = $conversations[$chosenConversationId].history.length - i;
+    // Delete messages from the end to the current one, including itself
+    for (let j = 0; j < deleteCount; j++) {
+      deleteMessageFromConversation($conversations[$chosenConversationId].history.length - 1);
+    }
+    // Process the edited message as new input
+    let convId = $chosenConversationId;
+    routeMessage(editedContent, convId);
+    cancelEdit(); // Reset editing state
+  }
+
+
 </script>
 <title>
   {#if $conversations.length > 0 && $conversations[$chosenConversationId]}
-  {$conversations[$chosenConversationId].title || "ChatGPT API"}
+  {$conversations[$chosenConversationId].title || "SmoothGPT"}
 {:else}
-  ChatGPT API
+SmoothGPT
 {/if}
 </title>
 {#if $settingsVisible}
 <Settings on:settings-changed={reloadConfig} />
 {/if}
+{#if $helpVisible}
+<Help />
+{/if}
 
 <main class="bg-primary overflow-hidden">
   <Sidebar on:new-chat={() => newChat()} />
-    <div class="h-screen flex flex-col md:ml-[260px] bg-secondary text-white/80 height-manager">
+    <div class="h-screen flex justify-stretch flex-col md:ml-[260px] bg-secondary text-white/80 height-manager">
       <Topbar bind:conversation_title={conversationTitle} on:new-chat={newChat} />
+      <div class="py-5 bg-primary px-5 flex flex-row justify-between flex-wrap-reverse">
+        
+      <div class="font-bold text-l">  
+        Current Model: <span class="font-normal">{$selectedModel}</span>
+      </div>
 
-      <div class="flex-1 bg-primary overflow-y-auto overflow-x-hidden" bind:this={chatContainer}>
+      
+
+    
+
+      </div>
+      <div class="flex bg-primary overflow-y-auto overflow-x-hidden justify-center grow" bind:this={chatContainer}>
       {#if $conversations.length > 0 && $conversations[$chosenConversationId]}
-        <div class="flex flex-col">
-          {#each $conversations[$chosenConversationId].history as message, i}
-            <div class="message relative inline-block {message.role === 'assistant' ? 'bg-hover2' : 'bg-primary'} px-2 py-5">
-              <button class="copyButton" on:click={() => copyTextToClipboard(message.content)}>
-                <img class="icon-white w-8" alt="Copy" src={CopyIcon} />
-              </button>
-              <button class="deleteButton" on:click={() => deleteMessageFromConversation(i)}>
-                <img class="icon-white w-8" alt="Delete" src={DeleteIcon} />
-              </button>
-              <div class="px-20 text-[1rem]">
-                {#if isAudioMessage(message)}
-                  <AudioPlayer audioUrl={message.audioUrl} />
-                {:else}
-                  <SvelteMarkdown renderers={{
-                    code: CodeRenderer,
-                    em: EmRenderer,
-                    list: ListRenderer,
-                    listitem: ListItemRenderer,
-                    codespan: CodeSpanRenderer,
-                    paragraph: ParagraphRenderer,
-                    html: HtmlRenderer,
-                  }} source={formatMessageForMarkdown(message.content.toString())} />
-                {/if}
+        <div class="flex flex-col max-w-3xl pt-5 grow">
+          
+          <div>
+        {#each $conversations[$chosenConversationId].history as message, i}
+          <div class="message relative inline-block bg-primary px-2 pb-5 flex flex-col">
+            <div class="profile-picture flex">
+              <div>
+                <img src={message.role === 'user' ? UserIcon : RobotIcon} alt="Profile" class="w-6 h-6 ml-10" />
+              </div>
+              <div class="relative ml-3 font-bold">
+                  {#if message.role === 'assistant'}
+                    ChatGPT
+                  {:else}
+                    You
+                  {/if}
               </div>
             </div>
-          {/each}
-        </div>
+
+            {#if editingMessageId === i}
+            <textarea bind:this={editTextArea}
+            class="message-edit-textarea mt-2 bg-gray-700 p-3 mx-10 resize-none focus:outline-none rounded-lg"
+            bind:value={editingMessageContent}
+            on:input={autoExpand}
+            style="height: 96px; overflow-y: auto;" 
+            ></textarea>
+            <div class="flex place-content-center mt-4">
+              <button class="submit-edit rounded-lg p-2 mr-2 
+              { $isStreaming ? 'bg-gray-500 cursor-not-allowed hover:bg-gray-500' : 'hover:bg-green-500 bg-green-700'}"
+                   on:click={() => submitEdit(i)} 
+                      disabled={$isStreaming}>Submit</button>
+              <button class="cancel-edit bg-gray-700 hover:bg-gray-500 rounded-lg p-2 mr-2" 
+                      on:click={() => cancelEdit()}>Cancel</button>
+            </div>
+            
+            {:else}
+
+
+            <div class="message-display px-20 text-[1rem]">
+              {#if isAudioMessage(message)}
+                <div class="pb-3">
+                <AudioPlayer audioUrl={message.audioUrl} />
+                </div>
+              {:else}
+                <SvelteMarkdown renderers={{
+                  code: CodeRenderer,
+                  em: EmRenderer,
+                  list: ListRenderer,
+                  listitem: ListItemRenderer,
+                  codespan: CodeSpanRenderer,
+                  paragraph: ParagraphRenderer,
+                  html: HtmlRenderer,
+                }} source={formatMessageForMarkdown(message.content.toString())} />
+              {/if}
+            </div>
+            <div class="toolbelt flex space-x-2 pl-20 mb-2 tools">
+              {#if message.role === 'assistant'}
+                {#if !isAudioMessage(message)}
+                  <button class="copyButton w-5" on:click={() => copyTextToClipboard(message.content)}>
+                    <img class="copy-icon" alt="Copy" src={CopyIcon} />
+                  </button>
+                {/if}
+                <button class="deleteButton w-5" on:click={() => deleteMessageFromConversation(i)}>
+                  <img class="delete-icon" alt="Delete" src={DeleteIcon} />
+                </button>
+              {/if}
+            {#if message.role === 'user'}
+              <button class="editButton w-5" on:click={() => startEditMessage(i)}>
+                <img class="edit-icon" alt="edit" src={EditIcon} />
+              </button>
+            {/if}
+            </div>
+
+            {/if}
+
+
+
+          </div>
+        {/each}
+      </div>
+    </div>
       {:else}
         <div class="flex justify-center items-center h-full">
           <p>No conversation selected. Start a new conversation.</p>
         </div>
       {/if}
     </div>
-    <div class="flex p-2 bg-primary mt-auto">
+
+
+    <div class="inputbox-container w-full flex justify-center items-center bg-primary">
+
+    <div class="inputbox flex flex-1 bg-primary mt-auto mx-auto max-w-3xl mb-3">
       {#if isVisionMode}
       <input type="file" id="imageUpload" multiple accept="image/*" on:change="{handleImageUpload}" bind:this={fileInputElement} class="file-input">
       <label for="imageUpload" class="file-label bg-chat rounded py-2 px-4 mx-1 cursor-pointer hover:bg-hover2 transition-colors">
@@ -192,10 +309,12 @@ $: uploadedFileCount = $base64Images.length;
       </label>
       {/if}
 
-      <textarea   
-  class="w-full min-h-[96px] h-24 rounded p-2 mx-1 mr-0 rounded-r-none bg-chat resize-none focus:outline-none"   
-  placeholder="Type your message"   
+      <textarea bind:this={textAreaElement}  
+  class="w-full min-h-[96px] h-24 rounded-lg p-2 mx-1 mr-0 border-t-2 border-b-2 border-l-2 rounded-r-none bg-primary border-gray-500 resize-none focus:outline-none"   
+  placeholder="Type your message..."   
   bind:value={input}   
+  on:input={autoExpand}
+  style="height: 96px; overflow-y: auto;"
   on:keydown={(event) => {  
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);  
     if (!$isStreaming && event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !isMobile) {  
@@ -208,7 +327,7 @@ $: uploadedFileCount = $base64Images.length;
     }  
   }}  
 ></textarea>  
-<button class="bg-chat rounded py-2 px-4 mx-1 ml-0 rounded-l-none" on:click={() => { if ($isStreaming) { closeStream(); } else { processMessage(); } }} disabled={!$isStreaming && !input.trim().length}>    
+<button class="bg-chat rounded-lg py-2 px-4 mx-1 ml-0 border-t-2 border-b-2 border-r-2  border-gray-500 rounded-l-none cursor-pointer " on:click={() => { if ($isStreaming) { closeStream(); } else { processMessage(); } }} disabled={!$isStreaming && !input.trim().length}>    
   {#if $isStreaming}    
       <img class="icon-white min-w-[24px] w-[24px]" alt="Wait" src={WaitIcon} />    
   {:else}    
@@ -218,6 +337,19 @@ $: uploadedFileCount = $base64Images.length;
      
     </div>
   </div>
+
+
+  <div class="flex justify-center bg-primary px-4">
+  <div class="max-w-3xl">
+  <a href="https://ko-fi.com/loreteller" rel="noreferrer" target="_blank" class="block">
+    <div class="font-normal text-sm border-green-800 border-2 text-gray-200 px-5 py-3 rounded-full mb-3">
+        Enjoying SmoothGPT? Contribute to hosting costs & check out my creative work: <span class="underline font-bold">ko-fi.com/loreteller</span>
+    </div>
+</a>
+</div>
+</div>
+  
+</div>
 </main>
 
 <style>

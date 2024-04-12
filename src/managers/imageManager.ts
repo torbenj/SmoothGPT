@@ -18,7 +18,6 @@ export function handleImageUpload(event) {
 
 // Example function that gets called when sendVisionMessage completes
 export function onSendVisionMessageComplete() {
-    console.log("Clearing images.");
     base64Images.set([]);
     clearFileInputSignal.set(true);
 }

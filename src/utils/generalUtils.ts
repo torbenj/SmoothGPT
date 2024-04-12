@@ -28,3 +28,5 @@ export function formatMessageForMarkdown(content: string): string {
     let out: number = str.split("").filter((char) => char === "`").length;
     return out;
   }
+
+  

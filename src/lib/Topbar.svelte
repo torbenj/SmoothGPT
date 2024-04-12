@@ -11,7 +11,7 @@
 </script>
 
 <div
-  class="bg-secondary text-white/90 py-2 px-4 flex justify-between md:hidden"
+  class="bg-secondary text-white/90 py-2 px-4 flex justify-between md:hidden shrink grow-0 max-h-16"
 >
   <button
     on:click={() => {
@@ -22,7 +22,7 @@
     <img class="icon-white w-8" alt="Menu" src={MenuIcon} />
   </button>
   <div class="text-lg font-medium pt-[3px] text-center overflow-hidden h-8">
-    {conversation_title === "" ? "Conversation title" : conversation_title}
+    {conversation_title === "" ? "New Conversation" : conversation_title}
   </div>
   <button on:click={newChat} class="text-lg font-medium">
     <img class="icon-white w-8" alt="+" src={addIcon} />

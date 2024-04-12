@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { selectedModel, selectedVoice, selectedMode } from '../stores/stores';
+    import { selectedModel, selectedVoice, selectedMode, showTokens } from '../stores/stores';
     import { createEventDispatcher } from 'svelte';
     import CloseIcon from "../assets/close.svg";
     import { writable, get, derived } from "svelte/store";
@@ -16,8 +16,10 @@
   const dispatch = createEventDispatcher();
 
   let apiCheckMessage = writable('');
-  let models = writable([]); // Store for available models
-  let filteredModels = writable([]); // Initialize filteredModels as a writable store
+  let showMessage = writable(''); 
+
+  let models = writable([]); 
+  let filteredModels = writable([]); 
   $: $selectedMode, updateFilteredModels();
     $: $models, updateFilteredModels();
 
@@ -37,12 +39,18 @@
   localStorage.setItem("api_key", JSON.stringify(value));
 });
 
-
+let showTokensToggle = false;
+    showTokens.subscribe(value => {
+        showTokensToggle = value;
+    });
+    
 onMount(async() => {
    await initializeSettings();
 
   });
-
+  function handleShowTokensToggleChange() {
+        showTokens.set(showTokensToggle);
+    }
  function updateFilteredModels() {
         let mode = get(selectedMode);
         let availableModels = get(models);
@@ -80,6 +88,7 @@ async function initializeSettings() {
 
 async function checkAPIConnection() {
   if (!localApiTextField) {
+    showMessage.set("yellow");
     apiCheckMessage.set("API key is missing.");
     return;
   }
@@ -94,6 +103,7 @@ async function checkAPIConnection() {
     });
 
     if (response.ok) {
+      showMessage.set("green");
       apiCheckMessage.set("API connection succeeded.");
       // Optionally, reload settings or models here
       handleSave();
@@ -104,6 +114,7 @@ async function checkAPIConnection() {
     }
   } catch (error) {
     console.error("API connection failed:", error);
+    showMessage.set("red");
     apiCheckMessage.set("API connection failed.");
   }
 }
@@ -112,6 +123,8 @@ async function checkAPIConnection() {
 
 async function fetchModels(apiKey: string) {
   if (!apiKey) {
+    showMessage.set("yellow");
+    console.log("showMessage", showMessage)
     console.error("API key is missing.");
     return;
   }
@@ -172,7 +185,7 @@ handleClose();
 </script>
 
 <!-- Settings.svelte -->
-<div class="fixed z-10 inset-0  overflow-y-auto animate-fade-in">
+<div class="fixed z-50 inset-0  overflow-y-auto animate-fade-in">
   <div class="flex items-center  justify-center min-h-screen">
     <div class="bg-primary text-white rounded-lg shadow-xl p-8 relative">
       <button
@@ -193,11 +206,19 @@ handleClose();
       bind:value={localApiTextField}
     />
     <button
-      class="ml-2 bg-info hover:bg-infoHover text-white p-2 rounded"
+      class="ml-2 bg-blue-600 hover:bg-blue-400 transition-colors duration-800 text-white p-2 rounded text-xs"
       on:click={checkAPIConnection}
     >Check API</button>
   </div>
-  <p class="mt-2">{ $apiCheckMessage }</p>
+  <p
+  class="mt-2 text-white rounded-lg p-2 
+  {($showMessage === 'yellow' ? 'bg-yellow-600' : '')} 
+  {($showMessage === 'red' ? 'bg-red-600' : '')} 
+  {($showMessage === 'green' ? 'bg-green-600' : '')}"
+  style="display: {showMessage ? 'block' : 'none'};">
+  { $apiCheckMessage }
+</p>
+
 </div>
 
 
@@ -232,39 +253,57 @@ handleClose();
   </select>
 </div>
 {/if}
-      <div class="mb-4">
-        <label for="api-key" class="block font-medium mb-2"
-          >Default Assistant role</label
-        >
-        <input
-          class="border text-black border-gray-300 p-2 rounded w-full"
-          bind:value={assistantRoleField}
-        />
-        <select
-          bind:value={assistantRoleTypeField}
-          class="max-w-[86px] text-black bg-white my-2 p-2 rounded focus:outline-none focus:bg-white "
-        >
-          <option value="system">System</option>
-          <option value="user">User</option>
-        </select>
-      </div>
-      <div class="mb-4 flex justify-between items-center ">
-        <p class="block font-bold">
-          Tokens spent: {$combinedTokens.toFixed(0)} | {(
-            ($combinedTokens / 1000) *
-            0.002
-          ).toFixed(4)} $
-        </p>
+<div class="mb-4">
+  <label for="api-key" class="block font-medium mb-2">Default Assistant role</label>
+  <input class="border text-black border-gray-300 p-2 rounded w-full" bind:value={assistantRoleField} />
+  <div class="flex items-center my-2 space-x-2">
+    <select bind:value={assistantRoleTypeField} class="text-black p-2 rounded focus:outline-none focus:bg-white max-w-24">
+      <option value="system">System</option>
+      <option value="user">User</option>
+    </select>
+    <a href="https://platform.openai.com/docs/guides/prompt-engineering/tactic-ask-the-model-to-adopt-a-persona" target="_blank" rel="noreferrer" class="text-blue-300 transition underline text-xs hover:text-blue-500">Which should I use?</a>
+  </div>
+</div>
+
+      <div class="flex justify-between items-start">
+        <div class="flex flex-col">
+          <p class="font-bold mb-2">
+            Estimated Token Usage: {$combinedTokens.toFixed(0)}
+          </p>
+          <p class="">
+            Estimated Cost with GPT-4: ${(
+              ($combinedTokens / 1000) *
+              0.02
+            ).toFixed(2)}</p>
+             <p class="text-blue-300 transition underline text-xs hover:text-blue-500 mt-2">
+              <a href="https://openai.com/pricing" target="_blank" rel="noreferrer" >See all API pricing</a> </p>
+
+              <div class="mt-4">
+                <label for="show-tokens-toggle" class="flex items-center cursor-pointer">
+                  <div class="relative">
+                    <input type="checkbox" id="show-tokens-toggle" class="sr-only" bind:checked={showTokensToggle} on:change={handleShowTokensToggleChange}>
+                    <div class="block bg-gray-600 w-14 h-8 rounded-full"></div>
+                    <div class="dot absolute left-1 top-1 bg-gray-100 w-6 h-6 rounded-full transition"></div>
+                  </div>
+                  <div class="ml-3 text-gray-200">
+                    Show estimated tokens in sidebar
+                  </div>
+                </label>
+              </div>
+
+
+        </div>
         <button
           on:click={clearTokens}
-          class="bg-warning hover:bg-warningHover transition-colors duration-200 text-white ml-10 w-5 h-5 flex align-middle justify-center rounded"
+          class="bg-warning hover:bg-warningHover transition-colors duration-200 text-white ml-10 px-4 py-2 flex align-middle justify-center rounded"
           style="font-size: 1rem"
         >
           <img class="icon-white w-3" alt="Close" src={CloseIcon} />
         </button>
       </div>
+      
       <button
-        class="bg-good hover:bg-good2 transition-colors duration-200 text-white py-2 px-4 rounded"
+        class="bg-good hover:bg-good2 transition-colors duration-200 text-white py-2 px-4 mt-8 rounded"
         on:click={handleSaveAndClose}>Save</button
       >
     </div>

@@ -8,6 +8,9 @@ import { sendTTSMessage, sendRegularMessage, sendVisionMessage, sendRequest } fr
 let streamText = "";
 
 
+
+
+
 export function setHistory(msg, convId = get(chosenConversationId)): Promise<void> {
   return new Promise<void>((resolve, reject) => {
       try {
@@ -54,6 +57,27 @@ export function newChat() {
     conversations.update(conv => [...conv, newConversation]);
     chosenConversationId.set(get(conversations).length - 1);
 }
+
+
+export function cleanseMessage(msg: ChatCompletionRequestMessage | { role: string; content: any }): ChatCompletionRequestMessage {
+    // Only allowing 'role' and 'content' fields, adapt this part as necessary
+    const allowedProps = ['role', 'content'];
+    let cleansed = Object.keys(msg)
+        .filter(key => allowedProps.includes(key))
+        .reduce((obj, key) => {
+            obj[key] = msg[key];
+            return obj;
+        }, {} as any);
+
+    // If 'content' is an array (for structured messages like images), keep it as is
+    // Otherwise, ensure 'content' is a string
+    if (!Array.isArray(cleansed.content)) {
+        cleansed.content = cleansed.content.toString();
+    }
+
+    return cleansed as ChatCompletionRequestMessage;
+}
+
 
 
 export async function routeMessage(input: string, convId) {
@@ -114,9 +138,9 @@ async function createTitle(currentInput: string) {
 export function displayAudioMessage(audioUrl) {
     const audioMessage = {
   role: "assistant",
-  content: "Your audio file is ready.",
-  audioUrl: audioUrl, // TypeScript will ignore this extra property
-  isAudio: true // Same as above
+  content: "Audio file generated.",
+  audioUrl: audioUrl,
+  isAudio: true 
 } as ChatCompletionRequestMessage;
 
 setHistory([...get(conversations)[get(chosenConversationId)].history, audioMessage]);
@@ -126,7 +150,6 @@ export function countTokens(usage) {
     let conv = get(conversations);
     conv[get(chosenConversationId)].conversationTokens =
       conv[get(chosenConversationId)].conversationTokens + usage.total_tokens;
-      console.log("conversation set");
     conversations.set(conv);
     combinedTokens.set(get(combinedTokens) + usage.total_tokens);
     console.log("Counted tokens: " + usage.total_tokens);
@@ -143,7 +166,6 @@ export function countTokens(usage) {
     let conv = get(conversations);
     conv[convId].conversationTokens =
       conv[convId].conversationTokens + tokens;
-      console.log("conversation set");
     conversations.set(conv);
     combinedTokens.set(get(combinedTokens) + tokens);
   }

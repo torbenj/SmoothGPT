@@ -31,3 +31,7 @@
     animation-duration: 0.2s;
     animation-fill-mode: forwards;
   }
+  input:checked ~ .dot {
+    transform: translateX(1.5rem);
+    background-color: #8ee78e;
+  }

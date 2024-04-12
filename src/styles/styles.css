@@ -1,6 +1,4 @@
-.message:hover button {
-    opacity: 1;
-  }
+
   .height-manager {
   height: calc(var(--app-height) * 100);
 }
@@ -11,24 +9,16 @@
     height: 100vh;
   }
 }
-.deleteButton {
-    padding: 5px;
-    position: absolute;
-    opacity: 0;
-    top: 0;
-    right: 0;
-    margin: 10px;
-    transition: all 0.1s ease-in-out;
+ .tools {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.1s, visibility 0.1s;
   }
-  .copyButton {
-    padding: 5px;
-    position: absolute;
-    opacity: 0;
-    top: 0;
-    left: 0;
-    margin: 10px;
-    transition: all 0.1s ease-in-out;
-  }
+  .message:hover .tools {
+  opacity: 1;
+  visibility: visible;
+  } 
+
   .file-input {
     width: 0.1px;
     height: 0.1px;
@@ -75,3 +65,47 @@
       color: white; /* Text color */
       font-size: 16px; /* Adjust based on your design */
     }
+
+    .copy-icon {
+      filter: invert(60%);    
+      }
+    .copy-icon:hover {
+filter: invert(100%);    
+}
+.delete-icon {
+  filter: grayscale(100%) invert(75%);    
+
+}
+.delete-icon:hover {
+filter: none;    
+}
+.edit-icon {
+  filter: grayscale(100%) invert(75%);    
+
+}
+.edit-icon:hover {
+  filter: grayscale(100%) invert(100%);    
+}
+
+.inputbox-container {
+  /* Ensures the container takes up full available width */
+  width: 100%;
+  /* Center alignment */
+  justify-content: center;
+  /* Align items vertically */
+  align-items: center;
+  /* Display as flex to enable flexbox properties */
+  display: flex;
+}
+
+::-webkit-scrollbar { width: 8px;}
+::-webkit-scrollbar-button {  background-color: #464d5c; height: 0px; }
+::-webkit-scrollbar-track-piece { background-color: #282c34;}
+::-webkit-scrollbar-thumb { height: 50px; background-color: #666; border-radius: 12px;}
+::-webkit-scrollbar-corner { background-color: #646464;}
+::-webkit-resizer { background-color: #666;}
+
+.message p {
+padding-bottom: 0.5rem;
+
+}

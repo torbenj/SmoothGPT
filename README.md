@@ -1,66 +1,59 @@
+# SmoothGPT - a ChatGPT API Enhanced UI
 
+This is my overhauled and improved ChatGPT API UI, forked from patrikzudel ([PatrikZeros-ChatGPT-API-UI](https://github.com/patrikzudel/PatrikZeros-ChatGPT-API-UI)). Firstly, a **HUGE thank you** to Patrik for his fantastic work in the original version.
 
-<p style="text-align:center; font-weight:700; font-size: 4rem; line-height: 2rem; padding-bottom: 2rem; margin-top: 0px; padding-top: 0px;">ChatGPT UI</p>
+There were a number of improvements I wanted to make. This was initially done for only my personal use, but now I am offering it publicly.
 
-#### Static website that allows you to use your OpenAI API key for the same experience as you get with ChatGPT!
+## APP IMPROVEMENTS:
 
-  ## 📖 How to use
-  - Visit the GitHub Pages release [here](https://chat.patrikzudel.me/).
-  - Or to run locally, pull the repository and run ```npm run dev```
-  - **If you don't know your API key make one here and don't forget to setup billing for it to work.**
+### Fully Modularized
+- I refactored the codebase to be modularized, instead of being contained in one large file. This makes extending the code much easier.
 
+### API Checking
+- The settings pane has a button to conduct an API check and let the user know if the API key is working or not.
 
-## ⚡ Features
-- All features that are in ChatGPT
-- Ability to use your own OpenAI API key.
-- No minimum cost, great for students!
-  - Cheaper than ChatGPT Premium for most users.
-- Usage estimator for pricing - See how much you've spent so far!
-  - Estimating token count (4chars = 1token)
-- Token / cost saving features:
-  - Send message without history. 
-    - When you are asking a sequence of unrelated questions, don't bother sending the whole history!
+### Model Selection
+- Instead of it being hardcoded to use a certain model, the settings pane now queries the API for a list of available models, and the user may select one. The UI will display the currently active model in the side pane.
 
-  - Summarize the chat, useful if you have a message over the 4k token limit but you want to keep the context.
-- Ability to set a default system message. 
-  - This sets the role of the assistant, and provides it additional information
-    - Example uses:
-      - For telling the assistant which technology stack you're using so you don't have to repeat yourself.
-      - For roleplaying a character.
+### Support for Text-To-Speech and Vision Models
+- In the settings pane you can select a mode: GPT, GPT + Vision, or TTS. The list of available models dynamically filters.
 
-  - You can also switch between it being a "System" message or "User" message for finer control.
-    - "User" has stronger impact from what I've tried.
+### Text-To-Speech
+- With a TTS model selected, the settings pane also allows a user to select a Voice model. Then the user can submit text to be converted into an MP3. The resulting message displays a play button and a download button. Note that these are ephemeral: they are only stored in the active session and will no longer work if you reload the page.
 
+### Image Recognition
+- With a Vision model selected, the user can upload one or more images to the API. The UI will dynamically update to expose the image upload button when this mode is selected. The AI will be able to see and tell you about the images.
 
-  ## 💬 Reasonings
-I've been frustrated with **ChatGPT** **slowdowns**, **errors**, **constant reloading** and lack of **some features**. I was about to pay for Premium and noticed they released an API that is going to be much **cheaper** for most users. I also wanted to learn JS + a framework for a while now and this seemed like the perfect opportunity to learn. Hope you find it useful!
+### Copy Any Message
+- A copy button is now present on any message, allowing the user to copy it to their clipboard.
 
-## 📖 How it works
+### Improved Autoscroll
+- The conversation now allows the user to safely scroll up while text is streaming in. If the user scrolls back down to the bottom, the chat window snaps back into scrolling mode.
 
-Stack: Svelte, Tailwind, Typescript.
+### Improved Incoming Data Handling
+- The API is supposed to send JSON packets for the app to render as incoming text, but sometimes it sends multiple JSON packets in a burst. When multiple JSON packets arrive at once, the original code would error out. Now, the app gracefully unpacks and separates the JSON packets so the text continues to flow.
 
-Just makes calls to the OpenAI API using the key specified in settings.
+### Safely Stop Incoming Data
+- While the AI is talking to the user and data is streaming in, the UI won't allow the user to submit a new message. If the user wants to stop the API from talking, they can click the stop button and safely stop the incoming stream.
 
-## 🍀 Supporters
+### Improved Conversation Titles
+- In the background, the app will request the API to generate a title for the conversation after the first message is sent. This hidden prompt is now improved so the title is more meaningful and useful.
 
-**[!["Buy Me A Ramen"](https://raw.githubusercontent.com/patrikzudel/patrikzudel/main/ramen.png)](https://www.buymeacoffee.com/patrikzero)**
+### Conversation Title Editing
+- The user can now click the edit button on a conversation title and give it a custom title.
 
-> If you like this project and would like to support me, feel free to buy me a ramen! 🍜🍜🍜
+## NOTE:
 
-> Or **Paypal:**
+The original version had special buttons for "send without history" and "summarize". I removed these as accounting for these edge cases made modularizing the code quite difficult. I also didn't find myself ever making use of them. To "send without history" you can simply start a new conversation. To "summarize" you can simply ask the AI to summarize the conversation. However, now that the code is robustly modularized, someone could add them back in if desired.
 
-**[!["Buy Me A Ramen"](https://raw.githubusercontent.com/patrikzudel/patrikzudel/main/ramenpaypal.png)](https://ko-fi.com/patrikzudel)**
+Dall-E models are currently not displayed in the list of fetched models, as it would require further feature development to support incoming image handling.
 
-  ## 📋 To be added
+Conversation history is not shared between modes. If you switch modes, the AI will not "remember" past conversation.
 
-  - [ ] Google search using embeddings.
-  - [ ] PDF search using embeddings.
+Just like the original version, the conversations are stored in the browser cache, and will be lost if the cache is wiped.
 
-## 📃 Dependencies
-- OpenAI
-- Svelte-markdown 
-- sse.js
+I don't necessarily plan to actively support requests, as I forked the original just to improve it for my own needs. Feel free to let me know about bugs, and I might get to it. Otherwise, feel free to fork this or the original and make further improvements.
 
----
+***
 
-💻❤🍲 by [Patrik Žúdel](https://twitter.com/PatrikZero)
+[See the original readme here.](https://github.com/patrikzudel/PatrikZeros-ChatGPT-API-UI/blob/main/README.md)

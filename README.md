@@ -9,6 +9,9 @@ There were a number of improvements I wanted to make. This was initially done fo
 ### Fully Modularized
 - I refactored the codebase to be modularized, instead of being contained in one large file. This makes extending the code much easier.
 
+### Export and Import Session
+- Because all data is browser-side, wiping cache will wipe the data. The user can now preserve their conversations by exporting their session file.
+
 ### API Checking
 - The settings pane has a button to conduct an API check and let the user know if the API key is working or not.
 
@@ -27,8 +30,14 @@ There were a number of improvements I wanted to make. This was initially done fo
 ### Copy Any Message
 - A copy button is now present on any message, allowing the user to copy it to their clipboard.
 
+### Mid-conversation Editing
+- Just like on the official UI, the user may edit any message. This branches the conversation at that point.
+
 ### Improved Autoscroll
 - The conversation now allows the user to safely scroll up while text is streaming in. If the user scrolls back down to the bottom, the chat window snaps back into scrolling mode.
+
+### Improved UI
+- The UI more closely resembles the official ChatGPT interface, with better icons, avatars, and expanding text areas.
 
 ### Improved Incoming Data Handling
 - The API is supposed to send JSON packets for the app to render as incoming text, but sometimes it sends multiple JSON packets in a burst. When multiple JSON packets arrive at once, the original code would error out. Now, the app gracefully unpacks and separates the JSON packets so the text continues to flow.

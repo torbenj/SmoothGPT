@@ -8,6 +8,7 @@
   import Help from "./lib/Help.svelte";
   import SvelteMarkdown from "svelte-markdown";
   import CodeRenderer from "./renderers/Code.svelte";
+  import UserCodeRenderer from "./renderers/userCode.svelte";
   import EmRenderer from "./renderers/Em.svelte";
   import ListRenderer from "./renderers/ListRenderer.svelte";
   import ListItemRenderer from "./renderers/ListItem.svelte";
@@ -23,8 +24,10 @@
   import SendIcon from "./assets/send.svg";
   import WaitIcon from "./assets/wait.svg"; 
   import  UploadIcon from "./assets/upload-icon.svg";
+  import  PDFIcon from "./assets/pdf-icon.svg";
   import { afterUpdate } from "svelte";
-  import { conversations, chosenConversationId, settingsVisible, helpVisible, clearFileInputSignal } from "./stores/stores";
+  import { processPDF } from './managers/pdfManager';
+  import { conversations, chosenConversationId, settingsVisible, helpVisible, clearFileInputSignal, clearPDFInputSignal } from "./stores/stores";
   import { isAudioMessage, formatMessageForMarkdown } from "./utils/generalUtils";
   import { routeMessage, newChat, deleteMessageFromConversation } from "./managers/conversationManager";
   import { copyTextToClipboard } from './utils/generalUtils';
@@ -34,10 +37,14 @@
   import { base64Images } from './stores/stores';
   import { closeStream } from './services/openaiService';  
 
-  let fileInputElement; // This will hold the reference to your file input element
+  let fileInputElement; 
+  let pdfInputElement; 
   let input: string = "";
-  let textAreaElement; // Reference to the textarea element
-  let editTextArea; // Reference to the editing textarea element
+  let textAreaElement; 
+  let editTextArea; 
+
+  let pdfFile;
+  let pdfOutput = '';
 
   let chatContainer: HTMLElement;
   let moreButtonsToggle: boolean = false;
@@ -49,6 +56,11 @@
   $: if ($clearFileInputSignal && fileInputElement) {
     fileInputElement.value = '';
     clearFileInputSignal.set(false); // Reset the signal
+  }
+
+  $: if ($clearPDFInputSignal && pdfInputElement) {
+    pdfInputElement.value = '';
+    clearPDFInputSignal.set(false); // Reset the signal
   }
 
   $: {
@@ -66,6 +78,22 @@
 
     }
   }
+
+  async function uploadPDF(event) {
+    pdfFile = event.target.files[0]; // Get the first file (assuming single file upload)
+    if (pdfFile) {
+        pdfOutput = await processPDF(pdfFile);
+        console.log(pdfOutput);
+    }
+}
+
+function clearFiles() {  
+    base64Images.set([]); // Assuming this is a writable store tracking uploaded images  
+    pdfFile = null; // Clear the file variable  
+    pdfOutput = ''; // Reset the output  
+    pdfInputElement.value = '';
+
+  }  
   
   let chatContainerObserver: MutationObserver | null = null;  
   
@@ -109,6 +137,7 @@
     }    
   }    
 }  
+
 const textMaxHeight = 300; // Maximum height in pixels
 
 function autoExpand(event) {
@@ -124,8 +153,9 @@ function autoExpand(event) {
 
   function processMessage() {
     let convId = $chosenConversationId;
-    routeMessage(input, convId);
+    routeMessage(input, convId, pdfOutput);
     input = ""; 
+    clearFiles ();
     textAreaElement.style.height = '96px'; // Reset the height after sending
   }
   function scrollChat() {
@@ -142,12 +172,18 @@ function autoExpand(event) {
   });
   
   $: isVisionMode = $selectedMode.includes('Vision');
+  $: isGPTMode = $selectedMode.includes('GPT');
 
 $: conversationTitle = $conversations[$chosenConversationId] ? $conversations[$chosenConversationId].title : "ChatGPT";
 
 
-let uploadedFileCount: number = 0; // New variable to track the number of files uploaded
+let uploadedFileCount: number = 0; 
 $: uploadedFileCount = $base64Images.length;
+
+let uploadedPDFCount: number = 0; 
+$: if (pdfOutput) {
+  uploadedPDFCount = 1; } else { uploadedPDFCount = 0; 
+} 
 
 function startEditMessage(i: number) {
     editingMessageId = i;
@@ -170,10 +206,16 @@ function startEditMessage(i: number) {
     }
     // Process the edited message as new input
     let convId = $chosenConversationId;
-    routeMessage(editedContent, convId);
+    routeMessage(editedContent, convId, pdfOutput);
     cancelEdit(); // Reset editing state
   }
 
+  function isImageUrl(url) {
+    // Ensure the URL has no spaces and matches the domain and specific content type for images
+    return !/\s/.test(url) && 
+           url.includes('blob.core.windows.net') && 
+           /rsct=image\/(jpeg|jpg|gif|png|bmp)/i.test(url);
+  }
 
 </script>
 <title>
@@ -211,6 +253,9 @@ SmoothGPT
           
           <div>
         {#each $conversations[$chosenConversationId].history as message, i}
+
+        {#if message.role !=='system'}
+
           <div class="message relative inline-block bg-primary px-2 pb-5 flex flex-col">
             <div class="profile-picture flex">
               <div>
@@ -245,25 +290,46 @@ SmoothGPT
 
 
             <div class="message-display px-20 text-[1rem]">
-              {#if isAudioMessage(message)}
-                <div class="pb-3">
-                <AudioPlayer audioUrl={message.audioUrl} />
-                </div>
-              {:else}
+              {#if isImageUrl(message.content)}
+          <img src={message.content} alt="Generated" class="max-w-full h-auto my-3"/>
+          <div class="text-sm text-gray-500">
+            This image will be available for 60 minutes. Right click + save as!
+          </div>
+        {:else if isAudioMessage(message)}
+          <div class="pb-3">
+            <AudioPlayer audioUrl={message.audioUrl} />
+          </div>
+        {:else}
+
+        {#if message.role === 'assistant'}
                 <SvelteMarkdown renderers={{
                   code: CodeRenderer,
                   em: EmRenderer,
                   list: ListRenderer,
                   listitem: ListItemRenderer,
-                  codespan: CodeSpanRenderer,
                   paragraph: ParagraphRenderer,
                   html: HtmlRenderer,
                 }} source={formatMessageForMarkdown(message.content.toString())} />
+{:else}
+
+                <SvelteMarkdown renderers={{  
+                  code: UserCodeRenderer,
+                  codespan: CodeSpanRenderer,
+                  em: EmRenderer,  
+                  list: ListRenderer,  
+                  listitem: ListItemRenderer,  
+                  paragraph: ParagraphRenderer,  
+                  html: HtmlRenderer,  
+                }} source={formatMessageForMarkdown(message.content.toString())} />  
+
+
+{/if}
+
               {/if}
             </div>
             <div class="toolbelt flex space-x-2 pl-20 mb-2 tools">
               {#if message.role === 'assistant'}
-                {#if !isAudioMessage(message)}
+                {#if !isAudioMessage(message) && !isImageUrl(message.content)}
                   <button class="copyButton w-5" on:click={() => copyTextToClipboard(message.content)}>
                     <img class="copy-icon" alt="Copy" src={CopyIcon} />
                   </button>
@@ -284,7 +350,9 @@ SmoothGPT
 
 
           </div>
-        {/each}
+{/if}        
+        
+          {/each}
       </div>
     </div>
       {:else}
@@ -298,15 +366,37 @@ SmoothGPT
     <div class="inputbox-container w-full flex justify-center items-center bg-primary">
 
     <div class="inputbox flex flex-1 bg-primary mt-auto mx-auto max-w-3xl mb-3">
-      {#if isVisionMode}
-      <input type="file" id="imageUpload" multiple accept="image/*" on:change="{handleImageUpload}" bind:this={fileInputElement} class="file-input">
-      <label for="imageUpload" class="file-label bg-chat rounded py-2 px-4 mx-1 cursor-pointer hover:bg-hover2 transition-colors">
-        {#if uploadedFileCount === 0}
-          <img src={UploadIcon} alt="Upload" class="upload-icon icon-white">
-        {:else}
-          <span class="fileCount">{uploadedFileCount}</span>
-        {/if}
-      </label>
+      {#if isVisionMode}  
+      <input type="file" id="imageUpload" multiple accept="image/*" on:change="{handleImageUpload}" bind:this={fileInputElement} class="file-input">  
+      <label for="imageUpload" class="file-label bg-chat rounded py-2 px-4 mx-1 cursor-pointer hover:bg-hover2 transition-colors">  
+        {#if uploadedFileCount > 0}  
+          <span class="fileCount">{uploadedFileCount}</span>  
+        {:else}  
+          <img src={UploadIcon} alt="Upload" class="upload-icon icon-white">  
+        {/if} 
+      </label>  
+
+      {#if uploadedFileCount > 0}  
+      <button on:click={clearFiles} class="clear-btn">X</button>  
+    {/if}  
+
+
+{:else if isGPTMode}
+<input type="file" id="pdfUpload" accept="application/pdf" 
+on:change="{event => uploadPDF(event)}" bind:this={pdfInputElement} class="file-input">
+
+<label for="pdfUpload" class="file-label bg-chat rounded py-2 px-4 mx-1 cursor-pointer hover:bg-hover2 transition-colors">
+  {#if uploadedPDFCount === 0}
+    <img src={PDFIcon} alt="PDF" class="pdf-icon icon-white">
+  {:else}
+    <span class="fileCount">{uploadedPDFCount}</span>
+  {/if}
+</label>
+
+{#if uploadedPDFCount > 0}  
+      <button on:click={clearFiles} class="clear-btn px-4 rounded-lg bg-red-700 mx-2 hover:bg-red-500">X</button>  
+    {/if}  
+
       {/if}
 
       <textarea bind:this={textAreaElement}  
@@ -314,7 +404,7 @@ SmoothGPT
   placeholder="Type your message..."   
   bind:value={input}   
   on:input={autoExpand}
-  style="height: 96px; overflow-y: auto;"
+  style="height: 96px; overflow-y: auto; overflow:visible !important;"
   on:keydown={(event) => {  
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);  
     if (!$isStreaming && event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.metaKey && !isMobile) {  

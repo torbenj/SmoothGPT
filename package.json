@@ -1,10 +1,10 @@
 {
-  "name": "chatgpt-api-ui",
+  "name": "smoothgpt",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json"
@@ -25,6 +25,7 @@
   "dependencies": {
     "idb": "^8.0.0",
     "openai": "^3.2.1",
+    "pdfjs-dist": "^4.1.392",
     "puppeteer": "^22.6.1",
     "sse.js": "^0.6.1",
     "svelte-markdown": "^0.2.3"

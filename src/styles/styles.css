@@ -51,8 +51,9 @@
   }
 
   .upload-icon {
-    width: 24px; /* Adjust based on your icon's size */
+    width: 36px; /* Adjust based on your icon's size */
     height: auto; }
+
     .fileCount {
       display: inline-flex;
       align-items: center;
@@ -65,6 +66,11 @@
       color: white; /* Text color */
       font-size: 16px; /* Adjust based on your design */
     }
+
+    .pdf-icon {
+      width: 36px; /* Adjust based on your icon's size */
+      height: auto; }
+
 
     .copy-icon {
       filter: invert(60%);    

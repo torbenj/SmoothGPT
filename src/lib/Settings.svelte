@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { selectedModel, selectedVoice, selectedMode, showTokens } from '../stores/stores';
+    import { selectedModel, selectedVoice, selectedMode, showTokens, selectedSize, selectedQuality } from '../stores/stores';
     import { createEventDispatcher } from 'svelte';
     import CloseIcon from "../assets/close.svg";
     import { writable, get, derived } from "svelte/store";
@@ -60,6 +60,8 @@ onMount(async() => {
             newFilteredModels = availableModels.filter(model => model.id.includes('gpt') && !model.id.includes('vision'));
         } else if (mode === "GPT + Vision") {
             newFilteredModels = availableModels.filter(model => model.id.includes('vision'));
+        } else if (mode === "Dall-E") {
+            newFilteredModels = availableModels.filter(model => model.id.includes('dall-e'));
         } else if (mode === "TTS") {
             newFilteredModels = availableModels.filter(model => model.id.includes('tts'));
         }
@@ -227,6 +229,7 @@ handleClose();
         <select bind:value={$selectedMode} class="border text-black border-gray-300 p-2 rounded w-full" id="mode-selection">
           <option value="GPT">GPT</option>
           <option value="GPT + Vision">GPT + Vision</option>
+          <option value="Dall-E">Dall-E</option>
           <option value="TTS">TTS</option>
         </select>
       </div>
@@ -253,6 +256,28 @@ handleClose();
   </select>
 </div>
 {/if}
+
+
+{#if $selectedModel.startsWith('dall-e')}
+<div class="mb-4">
+  <label for="size-selection" class="block font-medium mb-2">Image Size</label>
+  <select bind:value={$selectedSize} class="border text-black border-gray-300 p-2 rounded w-full" id="size-selection">
+    <option value="1024x1024">1024x1024</option>
+    <option value="1024x1792">1024x1792</option>
+    <option value="1792x1024">1792x1024</option>
+  </select>
+</div>
+<div class="mb-4">
+  <label for="quality-selection" class="block font-medium mb-2">Image Quality</label>
+  <select bind:value={$selectedQuality} class="border text-black border-gray-300 p-2 rounded w-full" id="quality-selection">
+    <option value="standard">standard</option>
+    <option value="hd">hd</option>
+  </select>
+
+</div>
+{/if}
+
+
 <div class="mb-4">
   <label for="api-key" class="block font-medium mb-2">Default Assistant role</label>
   <input class="border text-black border-gray-300 p-2 rounded w-full" bind:value={assistantRoleField} />

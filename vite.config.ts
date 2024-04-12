@@ -7,4 +7,27 @@ export default defineConfig({
     base: '/', 
     logLevel: 'info',  // Options are 'info', 'warn', 'error', and 'silent'
 
+    build: {
+      target: "es2022",
+      rollupOptions: {
+        output: {
+          // PDF.js might benefit from this for handling assets like workers
+          manualChunks(id) {
+            if (id.includes('pdf.worker.min.js')) {
+              return 'pdf.worker.min';
+            }
+          }
+        }
+      }
+    },
+    esbuild: {
+      target: "es2022"
+    },
+    optimizeDeps:{
+      esbuildOptions: {
+        target: "es2022",
+      }
+    }
+
+
 })

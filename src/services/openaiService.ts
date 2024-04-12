@@ -3,7 +3,7 @@ import { Configuration, OpenAIApi } from "openai";
 import type { ChatCompletionRequestMessage,  } from "openai";
 import type  { ChatCompletionRequestMessageRoleEnum } from "openai";
 import { apiKey} from "../stores/stores";
-import { selectedModel, selectedVoice, audioUrls, defaultAssistantRole, isStreaming, streamContext } from '../stores/stores';
+import { selectedModel, selectedVoice, audioUrls, selectedSize, selectedQuality, defaultAssistantRole, isStreaming, streamContext } from '../stores/stores';
 import { conversations, chosenConversationId, combinedTokens, userRequestedStreamClosure } from "../stores/stores";
 import { setHistory, countTokens, estimateTokens, displayAudioMessage, cleanseMessage } from '../managers/conversationManager';
 import { SSE } from 'sse.js'; // Assuming SSE library is used
@@ -411,6 +411,136 @@ let finalMessages = [...cleansedMessages, currentMessage];
     })
   );
   
+    source.addEventListener("message", async (e) => { // Note: Adding async here makes the callback function async
+      let payload;
+      if (e.data !== "[DONE]") {
+        try {  
+          if (!hasEncounteredError) {  
+            let parsedChunks = parseJSONChunks(e.data);
+            // Process each parsed JSON object
+            parsedChunks.forEach((payload) => {
+              // Your logic to handle each JSON object goes here
+              // Example: Extracting text and updating history or stream context
+              let text = payload.choices[0]?.delta?.content;
+              if (text) {
+                let msgTicks = countTicks(text);
+                tickCounter += msgTicks;
+                if (msgTicks === 0) tickCounter = 0;
+                if (tickCounter === 3) {
+                  ticks = !ticks;
+                  tickCounter = 0;
+                }
+                streamText += text;
+                streamContext.set({ streamText, convId }); // Update the store  
+      
+                // Here, we await setHistory within the async IIFE
+                setHistory([...currentHistory, {
+                  role: "assistant",
+                  content: streamText + "█" + (ticks ? "\n```" : ""),
+                }], convId);
+              }
+            });
+          }
+        } catch (error) {
+            console.error("Error parsing JSON:", error);  
+            hasEncounteredError = true; 
+            source.close();  
+            console.log("Stream closed due to parsing error.");  
+            isStreaming.set(false);  
+
+            return;
+          }  
+  
+      } else {
+        done = true;  
+        if (get(userRequestedStreamClosure)) {  
+          streamText = streamText.replace(/█+$/, ''); // Removes the block character(s) if present at the end  
+          userRequestedStreamClosure.set(false); // Reset the flag after handling  
+        }  
+      
+        await setHistory([...currentHistory, {  
+          role: "assistant",  
+          content: streamText,  
+        }], convId);  
+        
+
+
+
+        estimateTokens(msg, convId);
+        streamText = "";
+        done = true;
+        console.log("Stream closed");
+        source.close();
+          // Stream is complete, so set isStreaming back to false.  
+  isStreaming.set(false);  
+      }
+    });
+  
+    source.addEventListener("error", (e) => {  
+      try {  
+        if (done) return; // If the stream is already marked as done, no further action required.  
+        console.error("Stream error:", e);  
+      } finally {  
+        source.close();  
+        // Regardless of the cause of the error, the stream is closing, so set isStreaming back to false.  
+        isStreaming.set(false);  
+      }  
+    });  
+    
+    source.stream();  
+    globalSource = source;  
+  }  
+
+  export async function sendPDFMessage(msg: ChatCompletionRequestMessage[], convId, pdfOutput) {
+    userRequestedStreamClosure.set(false);  
+    let hasEncounteredError = false;  
+
+    let tickCounter = 0;
+    let ticks = false;
+    let currentHistory = get(conversations)[convId].history;
+    
+    let roleMsg: ChatCompletionRequestMessage = {
+      role: get(defaultAssistantRole).type as ChatCompletionRequestMessageRoleEnum,
+      content: get(conversations)[convId].assistantRole,
+    };
+    
+    let systemMessage: ChatCompletionRequestMessage = {  
+      role: 'system', // Assuming 'system' is an acceptable value for your backend/API  
+      content: pdfOutput,  
+    };  
+
+    currentHistory.push(systemMessage);  
+
+
+    msg = [roleMsg, systemMessage, ...msg];  
+console.log(msg);
+    const cleansedMessages = msg.map(cleanseMessage);
+
+    let done = false;
+    let streamText = "";
+  
+    currentHistory = [...currentHistory];
+    isStreaming.set(true);
+
+    let source = new SSE("https://api.openai.com/v1/chat/completions", {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${get(apiKey)}`,
+      },
+      method: "POST",
+      payload: JSON.stringify({
+        model: get(selectedModel),
+        messages: cleansedMessages,
+        stream: true,
+      }),
+    });
+
+    console.log("payload", JSON.stringify({
+      model: get(selectedModel),
+      messages: cleansedMessages,
+      stream: true,
+    })
+  );
   
     source.addEventListener("message", async (e) => { // Note: Adding async here makes the callback function async
       let payload;
@@ -494,4 +624,58 @@ let finalMessages = [...cleansedMessages, currentMessage];
   
 
 
+  export async function sendDalleMessage(msg: ChatCompletionRequestMessage[], convId) {
+    isStreaming.set(true);
+    let hasEncounteredError = false;
+    let currentHistory = get(conversations)[convId].history;
+  
+    let roleMsg: ChatCompletionRequestMessage = {
+      role: get(defaultAssistantRole).type as ChatCompletionRequestMessageRoleEnum,
+      content: get(conversations)[convId].assistantRole,
+    };
+  
+    msg = [roleMsg, ...msg];
+  
+    const cleansedMessages = msg.map(cleanseMessage);
+  
+    const prompt = cleansedMessages[cleansedMessages.length - 1].content;
+  
+    try {
+      let response = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${get(apiKey)}`,
+        },
+        body: JSON.stringify({
+          model: get(selectedModel),
+          prompt: prompt,
+          size: get(selectedSize),
+          quality: get(selectedQuality),
+          n: 1
+        }),
+      });
+  
+      if (!response.ok) throw new Error('HTTP error, status = ' + response.status);
+  
+      let data = await response.json();
+      let imageUrl = data.data[0].url;
+  
+      // Update the conversation history with the generated image URL
+      setHistory([...currentHistory, {
+        role: "assistant",
+        content: imageUrl,
+        type: "image" // Adding a type property to distinguish image messages
+      }], convId);
+  
+    } catch (error) {
+      console.error("Error generating image:", error);
+      hasEncounteredError = true;
+    } finally {
+      isStreaming.set(false);  // Notify that the image generation is complete
+    }
+  }
+  
+  
+  
   

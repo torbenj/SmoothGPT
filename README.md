@@ -58,8 +58,6 @@ There were a number of improvements I wanted to make. This was initially done fo
 
 The original version had special buttons for "send without history" and "summarize". I removed these as accounting for these edge cases made modularizing the code quite difficult. I also didn't find myself ever making use of them. To "send without history" you can simply start a new conversation. To "summarize" you can simply ask the AI to summarize the conversation. However, now that the code is robustly modularized, someone could add them back in if desired.
 
-Dall-E models are currently not displayed in the list of fetched models, as it would require further feature development to support incoming image handling.
-
 Just like the original version, the conversations are stored in the browser cache, and will be lost if the cache is wiped.
 
 I don't necessarily plan to actively support requests, as I forked the original just to improve it for my own needs. Feel free to let me know about bugs, and I might get to it. Otherwise, feel free to fork this or the original and make further improvements.

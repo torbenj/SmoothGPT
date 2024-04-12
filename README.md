@@ -61,6 +61,6 @@ Just like the original version, the conversations are stored in the browser cach
 
 I don't necessarily plan to actively support requests, as I forked the original just to improve it for my own needs. Feel free to let me know about bugs, and I might get to it. Otherwise, feel free to fork this or the original and make further improvements.
 
-***
+*** 
 
 [See the original readme here.](https://github.com/patrikzudel/PatrikZeros-ChatGPT-API-UI/blob/main/README.md)
